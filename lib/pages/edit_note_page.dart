@@ -213,193 +213,199 @@ class _EditNotePageState extends State<EditNotePage> {
           style: TextStyle(color: Color(0xFF2D3142), fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
         child: Column(
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Container(
-                      height: 250,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.edit, color: Colors.orange, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _contentController,
-                                  maxLines: null,
-                                  maxLength: 500,
-                                  decoration: const InputDecoration(
-                                    hintText: 'What do you want to remember?',
-                                    hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
-                                    border: InputBorder.none,
-                                    counterText: "",
-                                  ),
-                                  style: const TextStyle(fontSize: 16, color: Color(0xFF2D3142)),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final maxHeight = MediaQuery.of(context).size.height * 0.40;
+                return Container(
+                  constraints: BoxConstraints(
+                    minHeight: 160,
+                    maxHeight: maxHeight,
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.edit, color: Colors.orange, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _contentController,
+                                maxLines: null,
+                                keyboardType: TextInputType.multiline,
+                                scrollPhysics: const BouncingScrollPhysics(),
+                                decoration: const InputDecoration(
+                                  hintText: 'What do you want to remember?',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: ValueListenableBuilder<TextEditingValue>(
-                              valueListenable: _contentController,
-                              builder: (_, value, _) => Text(
-                                '${value.text.length}/500',
-                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                style: const TextStyle(fontSize: 16, color: Color(0xFF2D3142)),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _contentController,
+                          builder: (_, value, _) => Text(
+                            '${value.text.length} حرف',
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(5),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFE8EAF6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.location_on, color: Color(0xFF3F4494), size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Text(
+                          'Location',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2D3142)),
+                        ),
+                      ),
+                      if (_hasLocation)
+                        IconButton(
+                          onPressed: _removeLocation,
+                          icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                          tooltip: 'Remove location',
+                        ),
+                      IconButton(
+                        onPressed: _isFetchingLocation ? null : _refreshFromCurrentLocation,
+                        tooltip: 'Use my current location',
+                        icon: _isFetchingLocation
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.my_location, color: Color(0xFF3F4494), size: 20),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _hasLocation
+                        ? (_isFetchingLocation
+                            ? 'Finding your location...'
+                            : (_address ?? 'Resolving address...'))
+                        : 'No address yet',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _hasLocation
+                          ? const Color(0xFF2D3142)
+                          : Colors.grey,
                     ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha(5),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                  ),
+                  if (_hasLocation) ...[
+                    if (_distanceText.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          _distanceText,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF3F4494),
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFE8EAF6),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.location_on, color: Color(0xFF3F4494), size: 20),
-                              ),
-                              const SizedBox(width: 12),
-                              const Expanded(
-                                child: Text(
-                                  'Location',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2D3142)),
-                                ),
-                              ),
-                              if (_hasLocation)
-                                IconButton(
-                                  onPressed: _removeLocation,
-                                  icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                                  tooltip: 'Remove location',
-                                ),
-                              IconButton(
-                                onPressed: _isFetchingLocation ? null : _refreshFromCurrentLocation,
-                                tooltip: 'Use my current location',
-                                icon: _isFetchingLocation
-                                    ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.my_location, color: Color(0xFF3F4494), size: 20),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _hasLocation
-                                ? (_isFetchingLocation
-                                    ? 'Finding your location...'
-                                    : (_address ?? 'Resolving address...'))
-                                : 'No address yet',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: _hasLocation
-                                  ? const Color(0xFF2D3142)
-                                  : Colors.grey,
+                    const SizedBox(height: 12),
+                    GestureDetector(
+                      onTap: _openMap,
+                      child: Container(
+                        height: 100,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5E9),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Stack(
+                          children: [
+                            const Center(
+                              child: Icon(Icons.location_on, size: 36, color: Color(0xCC3F4494)),
                             ),
-                          ),
-                          if (_hasLocation) ...[
-                            if (_distanceText.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: Text(
-                                  _distanceText,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF3F4494),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            const SizedBox(height: 12),
-                            GestureDetector(
-                              onTap: _openMap,
+                            Positioned(
+                              bottom: 8,
+                              right: 8,
                               child: Container(
-                                height: 100,
-                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F5E9),
+                                  color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Stack(
-                                  children: [
-                                    const Center(
-                                      child: Icon(Icons.location_on, size: 36, color: Color(0xCC3F4494)),
-                                    ),
-                                    Positioned(
-                                      bottom: 8,
-                                      right: 8,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: const [
-                                            BoxShadow(color: Color(0x1A000000), blurRadius: 4),
-                                          ],
-                                        ),
-                                        child: const Text(
-                                          'View on map',
-                                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                                        ),
-                                      ),
-                                    ),
+                                  boxShadow: const [
+                                    BoxShadow(color: Color(0x1A000000), blurRadius: 4),
                                   ],
                                 ),
+                                child: const Text(
+                                  'View on map',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
                               ),
                             ),
-                          ] else
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                'No GPS pin attached. Tap the pin icon to use your current location.',
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                              ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ] else
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'No GPS pin attached. Tap the pin icon to use your current location.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      ),
+                    ),
+                ],
               ),
             ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: _updateNote,
               style: ElevatedButton.styleFrom(

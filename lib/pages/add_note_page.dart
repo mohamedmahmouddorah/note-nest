@@ -127,138 +127,144 @@ class _AddNotePageState extends State<AddNotePage> {
           style: TextStyle(color: Color(0xFF2D3142), fontSize: 18, fontWeight: FontWeight.bold),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
         child: Column(
           children: [
-            Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    Container(
-                      height: 250,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.edit, color: Colors.orange, size: 20),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: TextField(
-                                  controller: _contentController,
-                                  maxLines: null,
-                                  maxLength: 500,
-                                  decoration: const InputDecoration(
-                                    hintText: 'What do you want to remember?',
-                                    hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
-                                    border: InputBorder.none,
-                                    counterText: "",
-                                  ),
-                                  style: const TextStyle(fontSize: 16, color: Color(0xFF2D3142)),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final maxHeight = MediaQuery.of(context).size.height * 0.40;
+                return Container(
+                  constraints: BoxConstraints(
+                    minHeight: 160,
+                    maxHeight: maxHeight,
+                  ),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.edit, color: Colors.orange, size: 20),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: _contentController,
+                                maxLines: null,
+                                keyboardType: TextInputType.multiline,
+                                scrollPhysics: const BouncingScrollPhysics(),
+                                decoration: const InputDecoration(
+                                  hintText: 'What do you want to remember?',
+                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const Spacer(),
-                          Align(
-                            alignment: Alignment.bottomRight,
-                            child: ValueListenableBuilder<TextEditingValue>(
-                              valueListenable: _contentController,
-                              builder: (_, value, _) => Text(
-                                '${value.text.length}/500',
-                                style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                style: const TextStyle(fontSize: 16, color: Color(0xFF2D3142)),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: const [
-                          BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text(
-                              'Add location (optional)',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2D3142)),
-                            ),
-                            subtitle: const Text(
-                              'Save the place this note is about',
-                              style: TextStyle(fontSize: 12, color: Colors.grey),
-                            ),
-                            secondary: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: const BoxDecoration(color: Color(0xFFE8EAF6), shape: BoxShape.circle),
-                              child: const Icon(Icons.location_on, color: Color(0xFF3F4494), size: 20),
-                            ),
-                            value: _includeLocation,
-                            activeTrackColor: const Color(0xFFE8EAF6),
-                            activeThumbColor: const Color(0xFF3F4494),
-                            onChanged: (val) {
-                              setState(() => _includeLocation = val);
-                              if (val && _address == null) {
-                                _fetchCurrentLocation();
-                              }
-                            },
-                          ),
-                          if (_includeLocation) ...[
-                            const Divider(height: 1),
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _isFetchingLocation
-                                        ? 'Finding your location...'
-                                        : (_address ?? 'No address yet'),
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: _address == null
-                                          ? Colors.grey
-                                          : const Color(0xFF2D3142),
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  onPressed: _isFetchingLocation ? null : _fetchCurrentLocation,
-                                  tooltip: 'Use my current location',
-                                  icon: _isFetchingLocation
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        )
-                                      : const Icon(Icons.my_location, color: Color(0xFF3F4494), size: 20),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
                           ],
-                        ],
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.bottomRight,
+                        child: ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _contentController,
+                          builder: (_, value, _) => Text(
+                            '${value.text.length} حرف',
+                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [
+                  BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
+                ],
+              ),
+              child: Column(
+                children: [
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Add location (optional)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2D3142)),
                     ),
+                    subtitle: const Text(
+                      'Save the place this note is about',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    secondary: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(color: Color(0xFFE8EAF6), shape: BoxShape.circle),
+                      child: const Icon(Icons.location_on, color: Color(0xFF3F4494), size: 20),
+                    ),
+                    value: _includeLocation,
+                    activeTrackColor: const Color(0xFFE8EAF6),
+                    activeThumbColor: const Color(0xFF3F4494),
+                    onChanged: (val) {
+                      setState(() => _includeLocation = val);
+                      if (val && _address == null) {
+                        _fetchCurrentLocation();
+                      }
+                    },
+                  ),
+                  if (_includeLocation) ...[
+                    const Divider(height: 1),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _isFetchingLocation
+                                ? 'Finding your location...'
+                                : (_address ?? 'No address yet'),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: _address == null
+                                  ? Colors.grey
+                                  : const Color(0xFF2D3142),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _isFetchingLocation ? null : _fetchCurrentLocation,
+                          tooltip: 'Use my current location',
+                          icon: _isFetchingLocation
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.my_location, color: Color(0xFF3F4494), size: 20),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
                   ],
-                ),
+                ],
               ),
             ),
+            const SizedBox(height: 24),
             _isSaving
                 ? const Center(child: CircularProgressIndicator())
                 : ElevatedButton(
