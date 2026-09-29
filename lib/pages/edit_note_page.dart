@@ -267,7 +267,7 @@ class _EditNotePageState extends State<EditNotePage> {
                         child: ValueListenableBuilder<TextEditingValue>(
                           valueListenable: _contentController,
                           builder: (_, value, _) => Text(
-                            '${value.text.length} حرف',
+                            '${value.text.length} characters',
                             style: const TextStyle(color: Colors.grey, fontSize: 12),
                           ),
                         ),
