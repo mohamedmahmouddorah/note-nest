@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shake/shake.dart';
@@ -22,7 +24,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   int _selectedIndex = 0;
-  late final ShakeDetector _shakeDetector;
+  ShakeDetector? _shakeDetector;
 
   bool _shakeListening = false;
   bool _pageCovered = false;
@@ -35,17 +37,23 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   bool get _mapTabActive => _selectedIndex == 1;
 
+  bool get _isMobilePlatform =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _shakeDetector = ShakeDetector.waitForStart(
-      onPhoneShake: ([dynamic _]) {
-        _confirmDeleteAllNotes(fromShake: true);
-      },
-      shakeThresholdGravity: 2.7,
-    );
-    _setShakeListening(true);
+
+    if (_isMobilePlatform) {
+      _shakeDetector = ShakeDetector.waitForStart(
+        onPhoneShake: ([dynamic _]) {
+          _confirmDeleteAllNotes(fromShake: true);
+        },
+        shakeThresholdGravity: 2.7,
+      );
+      _setShakeListening(true);
+    }
   }
 
   @override
@@ -67,12 +75,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void _setShakeListening(bool listen) {
+    if (!_isMobilePlatform || _shakeDetector == null) return;
     if (listen == _shakeListening) return;
     _shakeListening = listen;
     if (listen) {
-      _shakeDetector.startListening();
+      _shakeDetector?.startListening();
     } else {
-      _shakeDetector.stopListening();
+      _shakeDetector?.stopListening();
     }
   }
 
