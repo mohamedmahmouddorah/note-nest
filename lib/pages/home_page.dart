@@ -218,8 +218,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 12),
-            if (note.latitude != null && note.longitude != null)
+            if (note.latitude != null && note.longitude != null) ...[
+              const SizedBox(height: 12),
               Builder(
                 builder: (context) {
                   final storedAddress = note.address?.trim();
@@ -239,16 +239,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   );
                 },
               ),
-            const SizedBox(height: 8),
+            ],
+            const SizedBox(height: 10),
             Row(
               children: [
                 const Icon(Icons.access_time, size: 12, color: Colors.grey),
                 const SizedBox(width: 4),
-                Text(
-                  note.isEdited
-                      ? 'Edited ${formatNoteDate(note.updatedAt)}'
-                      : formatNoteDate(note.createdAt),
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                Expanded(
+                  child: Text(
+                    note.isEdited
+                        ? 'Edited ${formatNoteDate(note.updatedAt)}'
+                        : formatNoteDate(note.createdAt),
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -262,7 +267,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return GestureDetector(
       onTap: () => _openMapForLocation(note),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: const Color(0xFFE8F5E9),
           borderRadius: BorderRadius.circular(12),
@@ -270,7 +275,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.location_on, size: 12, color: Colors.green),
+            const Icon(Icons.location_on, size: 14, color: Colors.green),
             const SizedBox(width: 4),
             Flexible(
               child: Text(
@@ -295,86 +300,102 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final horizontalPadding = constraints.maxWidth > 600 ? 32.0 : 20.0;
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    _mapTabActive ? 'Notes with a location' : 'My Notes',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2D3142),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _mapTabActive ? 'Notes with a location' : 'My Notes',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D3142),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _confirmDeleteAllNotes(),
+                        tooltip: 'Delete all notes',
+                        icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x05000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _onSearchChanged,
+                      decoration: const InputDecoration(
+                        hintText: 'Search notes or locations...',
+                        icon: Icon(Icons.search, color: Colors.grey, size: 20),
+                        border: InputBorder.none,
+                      ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => _confirmDeleteAllNotes(),
-                    tooltip: 'Delete all notes',
-                    icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
+                  const SizedBox(height: 20),
+                  Expanded(
+                    child: StreamBuilder<List<Note>>(
+                      stream: widget.repository.watchAllNotes(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(child: CircularProgressIndicator());
+                        }
+
+                        final allNotes = snapshot.data ?? [];
+                        _noteCount = allNotes.length;
+                        final liveIds = allNotes.map((n) => n.id).whereType<int>().toSet();
+                        _addressCache.removeWhere((id, _) => !liveIds.contains(id));
+
+                        final notes = _applyFilters(allNotes);
+                        if (notes.isEmpty) {
+                          return Center(
+                            child: SingleChildScrollView(
+                              physics: const BouncingScrollPhysics(),
+                              child: Text(
+                                _mapTabActive
+                                    ? 'No notes with a saved location yet'
+                                    : 'No notes found',
+                                style: const TextStyle(color: Colors.grey),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          );
+                        }
+                        return ListView.builder(
+                          physics: const BouncingScrollPhysics(),
+                          itemCount: notes.length,
+                          itemBuilder: (context, index) => _buildNoteCard(notes[index]),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x05000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: _onSearchChanged,
-                  decoration: const InputDecoration(
-                    hintText: 'Search notes or locations...',
-                    icon: Icon(Icons.search, color: Colors.grey, size: 20),
-                    border: InputBorder.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: StreamBuilder<List<Note>>(
-                  stream: widget.repository.watchAllNotes(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final allNotes = snapshot.data ?? [];
-                    _noteCount = allNotes.length;
-                    final liveIds = allNotes.map((n) => n.id).whereType<int>().toSet();
-                    _addressCache.removeWhere((id, _) => !liveIds.contains(id));
-
-                    final notes = _applyFilters(allNotes);
-                    if (notes.isEmpty) {
-                      return Center(
-                        child: Text(
-                          _mapTabActive ? 'No notes with a saved location yet' : 'No notes found',
-                          style: const TextStyle(color: Colors.grey),
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      itemCount: notes.length,
-                      itemBuilder: (context, index) => _buildNoteCard(notes[index]),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
       floatingActionButton: FloatingActionButton(
