@@ -35,6 +35,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   final Map<int, String> _addressCache = {};
 
+  /// قائمة LIFO Stack لتخزين الملاحظات المحذوفة واسترجاعها بالتسلسل العكسي
+  final List<Note> _recentlyDeleted = [];
+
   bool get _mapTabActive => _selectedIndex == 1;
 
   bool get _isMobilePlatform =>
@@ -88,9 +91,15 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _openPage(Widget page) async {
     _pageCovered = true;
     _setShakeListening(false);
-    await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
     _pageCovered = false;
     if (mounted) _setShakeListening(true);
+
+    if (result is Note) {
+      _addressCache.remove(result.id);
+      _recentlyDeleted.add(result);
+      _showUndoSnackbar();
+    }
   }
 
   void _onSearchChanged(String _) {
@@ -137,6 +146,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _clearAllNotes() async {
     await widget.repository.deleteAllNotes();
+    _recentlyDeleted.clear();
     _addressCache.clear();
     HapticFeedback.heavyImpact();
     if (!mounted) return;
@@ -189,87 +199,175 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     final title = lines.isNotEmpty ? lines.first : 'Note';
     final subtitle = lines.length > 1 ? lines.sublist(1).join(' ') : 'No additional text...';
 
-    return GestureDetector(
-      onTap: () => _openPage(
-        EditNotePage(repository: widget.repository, note: note),
-      ),
-      child: Container(
+    return Dismissible(
+      key: ValueKey(note.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (_) => _deleteNoteWithUndo(note),
+      background: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        alignment: Alignment.centerRight,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Colors.redAccent,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x08000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF2D3142),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            if (note.latitude != null && note.longitude != null) ...[
-              const SizedBox(height: 12),
-              Builder(
-                builder: (context) {
-                  final storedAddress = note.address?.trim();
-                  final knownLabel = (storedAddress != null && storedAddress.isNotEmpty)
-                      ? storedAddress
-                      : _addressCache[note.id];
-
-                  if (knownLabel != null) {
-                    return _locationChip(knownLabel, note);
-                  }
-
-                  return FutureBuilder<String>(
-                    future: _resolveAndCacheAddress(note),
-                    builder: (context, snapshot) {
-                      return _locationChip(snapshot.data ?? 'Finding location...', note);
-                    },
-                  );
-                },
+        child: const Icon(Icons.delete_outline, color: Colors.white),
+      ),
+      child: GestureDetector(
+        onTap: () => _openPage(
+          EditNotePage(repository: widget.repository, note: note),
+        ),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x08000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
             ],
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(Icons.access_time, size: 12, color: Colors.grey),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    note.isEdited
-                        ? 'Edited ${formatNoteDate(note.updatedAt)}'
-                        : formatNoteDate(note.createdAt),
-                    style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D3142),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  // زر حذف مباشر لبيئة الويندوز والماوس
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 20),
+                    tooltip: 'Delete note',
+                    onPressed: () => _deleteNoteWithUndo(note),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (note.latitude != null && note.longitude != null) ...[
+                const SizedBox(height: 12),
+                Builder(
+                  builder: (context) {
+                    final storedAddress = note.address?.trim();
+                    final knownLabel = (storedAddress != null && storedAddress.isNotEmpty)
+                        ? storedAddress
+                        : _addressCache[note.id];
+
+                    if (knownLabel != null) {
+                      return _locationChip(knownLabel, note);
+                    }
+
+                    return FutureBuilder<String>(
+                      future: _resolveAndCacheAddress(note),
+                      builder: (context, snapshot) {
+                        return _locationChip(snapshot.data ?? 'Finding location...', note);
+                      },
+                    );
+                  },
                 ),
               ],
-            ),
-          ],
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 12, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      note.isEdited
+                          ? 'Edited ${formatNoteDate(note.updatedAt)}'
+                          : formatNoteDate(note.createdAt),
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// حذف الملاحظة مع إضافتها للـ Stack وإظهار الـ SnackBar
+  Future<void> _deleteNoteWithUndo(Note note) async {
+    try {
+      await widget.repository.deleteNote(note);
+    } catch (e) {
+      debugPrint('Delete failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not delete the note. The database may be locked by another program.',
+            ),
+          ),
+        );
+      return;
+    }
+    _addressCache.remove(note.id);
+    _recentlyDeleted.add(note);
+    _showUndoSnackbar();
+  }
+
+  void _showUndoSnackbar() {
+    if (!mounted || _recentlyDeleted.isEmpty) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('1 note deleted'),
+          duration: const Duration(seconds: 4),
+          action: SnackBarAction(label: 'Undo', onPressed: _undoLastDelete),
+        ),
+      );
+  }
+
+  Future<void> _undoLastDelete() async {
+    if (_recentlyDeleted.isEmpty) return;
+    final note = _recentlyDeleted.removeLast();
+    try {
+      await widget.repository.restoreNote(note);
+    } catch (e) {
+      debugPrint('Restore failed: $e');
+      _recentlyDeleted.add(note);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Could not restore the note.')),
+        );
+      return;
+    }
+    if (!mounted) return;
+    if (_recentlyDeleted.isNotEmpty) {
+      _showUndoSnackbar();
+    } else {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    }
   }
 
   Widget _locationChip(String locName, Note note) {

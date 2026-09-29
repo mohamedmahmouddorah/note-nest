@@ -26,4 +26,6 @@ class NoteRepository {
   Future<void> deleteNote(Note note) => _dao.deleteNote(note);
 
   Future<void> deleteAllNotes() => _dao.deleteAllNotes();
+  
+  Future<void> restoreNote(Note note) => _dao.insertNote(note);
 }

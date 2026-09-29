@@ -8,7 +8,11 @@ class EditNotePage extends StatefulWidget {
   final NoteRepository repository;
   final Note note;
 
-  const EditNotePage({super.key, required this.repository, required this.note});
+  const EditNotePage({
+    super.key,
+    required this.repository,
+    required this.note,
+  });
 
   @override
   State<EditNotePage> createState() => _EditNotePageState();
@@ -33,7 +37,8 @@ class _EditNotePageState extends State<EditNotePage> {
     _hasLocation = _latitude != null && _longitude != null;
     _address = widget.note.address;
 
-    if (_hasLocation && (widget.note.address == null || widget.note.address!.trim().isEmpty)) {
+    if (_hasLocation &&
+        (widget.note.address == null || widget.note.address!.trim().isEmpty)) {
       _backfillAddress();
     }
 
@@ -43,7 +48,8 @@ class _EditNotePageState extends State<EditNotePage> {
   }
 
   Future<void> _backfillAddress() async {
-    final address = await LocationService.reverseGeocode(_latitude!, _longitude!);
+    final address =
+        await LocationService.reverseGeocode(_latitude!, _longitude!);
     if (mounted) {
       setState(() => _address = address);
     }
@@ -90,7 +96,8 @@ class _EditNotePageState extends State<EditNotePage> {
     }
   }
 
-  void _showSnack(String message, {String? actionLabel, VoidCallback? onAction}) {
+  void _showSnack(String message,
+      {String? actionLabel, VoidCallback? onAction}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -181,16 +188,16 @@ class _EditNotePageState extends State<EditNotePage> {
       longitude: longitude,
       address: address,
       createdAt: original.createdAt,
-      updatedAt: original.updatedAt,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
     );
 
     await widget.repository.updateNote(updatedNote);
-    if (mounted) Navigator.pop(context);
+    if (mounted) Navigator.pop(context, true);
   }
 
   Future<void> _deleteNote() async {
     await widget.repository.deleteNote(widget.note);
-    if (mounted) Navigator.pop(context);
+    if (mounted) Navigator.pop(context, widget.note);
   }
 
   @override
@@ -204,246 +211,359 @@ class _EditNotePageState extends State<EditNotePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F8FC),
       appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Color(0xFF2D3142), size: 20),
+          icon: const Icon(Icons.arrow_back_ios,
+              color: Color(0xFF2D3142), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Edit note',
-          style: TextStyle(color: Color(0xFF2D3142), fontSize: 18, fontWeight: FontWeight.bold),
+        title: const FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'Edit note',
+            style: TextStyle(
+              color: Color(0xFF2D3142),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-        child: Column(
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final maxHeight = MediaQuery.of(context).size.height * 0.40;
-                return Container(
-                  constraints: BoxConstraints(
-                    minHeight: 160,
-                    maxHeight: maxHeight,
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x05000000), blurRadius: 10, offset: Offset(0, 4)),
-                    ],
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isVeryCompact = constraints.maxWidth < 280;
+            final isDesktop = constraints.maxWidth > 700;
+            final horizontalPadding = isVeryCompact
+                ? 8.0
+                : (isDesktop ? 40.0 : 16.0);
+
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 700),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: horizontalPadding,
+                    vertical: 12.0,
                   ),
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.edit, color: Colors.orange, size: 20),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: TextField(
-                                controller: _contentController,
-                                maxLines: null,
-                                keyboardType: TextInputType.multiline,
-                                scrollPhysics: const BouncingScrollPhysics(),
-                                decoration: const InputDecoration(
-                                  hintText: 'What do you want to remember?',
-                                  hintStyle: TextStyle(color: Colors.grey, fontSize: 16),
-                                  border: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                style: const TextStyle(fontSize: 16, color: Color(0xFF2D3142)),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Align(
-                        alignment: Alignment.bottomRight,
-                        child: ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: _contentController,
-                          builder: (_, value, _) => Text(
-                            '${value.text.length} characters',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
-                          ),
-                        ),
-                      ),
+                      _buildNoteInputCard(constraints),
+                      const SizedBox(height: 16),
+                      _buildLocationCard(isVeryCompact),
+                      const SizedBox(height: 20),
+                      _buildActionButtons(constraints.maxWidth),
                     ],
                   ),
-                );
-              },
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(5),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFE8EAF6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.location_on, color: Color(0xFF3F4494), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Text(
-                          'Location',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2D3142)),
-                        ),
-                      ),
-                      if (_hasLocation)
-                        IconButton(
-                          onPressed: _removeLocation,
-                          icon: const Icon(Icons.close, size: 18, color: Colors.grey),
-                          tooltip: 'Remove location',
-                        ),
-                      IconButton(
-                        onPressed: _isFetchingLocation ? null : _refreshFromCurrentLocation,
-                        tooltip: 'Use my current location',
-                        icon: _isFetchingLocation
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.my_location, color: Color(0xFF3F4494), size: 20),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _hasLocation
-                        ? (_isFetchingLocation
-                            ? 'Finding your location...'
-                            : (_address ?? 'Resolving address...'))
-                        : 'No address yet',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: _hasLocation
-                          ? const Color(0xFF2D3142)
-                          : Colors.grey,
-                    ),
-                  ),
-                  if (_hasLocation) ...[
-                    if (_distanceText.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          _distanceText,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF3F4494),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: _openMap,
-                      child: Container(
-                        height: 100,
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Stack(
-                          children: [
-                            const Center(
-                              child: Icon(Icons.location_on, size: 36, color: Color(0xCC3F4494)),
-                            ),
-                            Positioned(
-                              bottom: 8,
-                              right: 8,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: const [
-                                    BoxShadow(color: Color(0x1A000000), blurRadius: 4),
-                                  ],
-                                ),
-                                child: const Text(
-                                  'View on map',
-                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ] else
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        'No GPS pin attached. Tap the pin icon to use your current location.',
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _updateNote,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3F4494),
-                minimumSize: const Size.fromHeight(56),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                elevation: 0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.save, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text('Save changes', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: _deleteNote,
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.redAccent),
-                backgroundColor: const Color(0xFFFFF4F4),
-                minimumSize: const Size.fromHeight(56),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                  SizedBox(width: 8),
-                  Text('Delete note', style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildNoteInputCard(BoxConstraints constraints) {
+    final maxHeight = constraints.maxHeight * 0.35;
+    return Container(
+      constraints: BoxConstraints(
+        minHeight: 140,
+        maxHeight: maxHeight < 160 ? 160 : maxHeight,
+      ),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x05000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.edit, color: Colors.orange, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _contentController,
+                    maxLines: null,
+                    keyboardType: TextInputType.multiline,
+                    scrollPhysics: const BouncingScrollPhysics(),
+                    decoration: const InputDecoration(
+                      hintText: 'What do you want to remember?',
+                      hintStyle: TextStyle(color: Colors.grey, fontSize: 15),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF2D3142),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.bottomRight,
+            child: ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _contentController,
+              builder: (_, value, _) => Text(
+                '${value.text.length} characters',
+                style: const TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationCard(bool isVeryCompact) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x05000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8EAF6),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.location_on,
+                    color: Color(0xFF3F4494), size: 18),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Location',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: Color(0xFF2D3142),
+                    ),
+                  ),
+                ),
+              ),
+              if (_hasLocation)
+                IconButton(
+                  onPressed: _removeLocation,
+                  icon: const Icon(Icons.close, size: 18, color: Colors.grey),
+                  tooltip: 'Remove location',
+                  constraints: const BoxConstraints(),
+                  padding: const EdgeInsets.all(4),
+                ),
+              IconButton(
+                onPressed:
+                    _isFetchingLocation ? null : _refreshFromCurrentLocation,
+                tooltip: 'Use my current location',
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(4),
+                icon: _isFetchingLocation
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.my_location,
+                        color: Color(0xFF3F4494), size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _hasLocation
+                ? (_isFetchingLocation
+                    ? 'Finding your location...'
+                    : (_address ?? 'Resolving address...'))
+                : 'No address yet',
+            style: TextStyle(
+              fontSize: 13,
+              color: _hasLocation ? const Color(0xFF2D3142) : Colors.grey,
+            ),
+          ),
+          if (_hasLocation) ...[
+            if (_distanceText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _distanceText,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF3F4494),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+            GestureDetector(
+              onTap: _openMap,
+              child: Container(
+                height: 90,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Stack(
+                  children: [
+                    const Center(
+                      child: Icon(Icons.location_on,
+                          size: 32, color: Color(0xCC3F4494)),
+                    ),
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: const [
+                            BoxShadow(color: Color(0x1A000000), blurRadius: 4),
+                          ],
+                        ),
+                        child: const Text(
+                          'View on map',
+                          style: TextStyle(
+                              fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ] else
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'No GPS pin attached.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(double maxWidth) {
+    final isDesktopRow = maxWidth > 500;
+    final isUltraCompact = maxWidth < 200;
+
+    final saveButton = ElevatedButton(
+      onPressed: _updateNote,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF3F4494),
+        minimumSize: const Size.fromHeight(48),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        elevation: 0,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (!isUltraCompact) ...[
+            const Icon(Icons.save, color: Colors.white, size: 18),
+            const SizedBox(width: 6),
+          ],
+          const Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Save changes',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final deleteButton = OutlinedButton(
+      onPressed: _deleteNote,
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.redAccent),
+        backgroundColor: const Color(0xFFFFF4F4),
+        minimumSize: const Size.fromHeight(48),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          if (!isUltraCompact) ...[
+            const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+            const SizedBox(width: 6),
+          ],
+          const Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Delete note',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (isDesktopRow) {
+      return Row(
+        children: [
+          Expanded(child: deleteButton),
+          const SizedBox(width: 12),
+          Expanded(child: saveButton),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        saveButton,
+        const SizedBox(height: 10),
+        deleteButton,
+      ],
     );
   }
 }
